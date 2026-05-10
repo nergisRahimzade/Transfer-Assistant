@@ -12,6 +12,8 @@ import programsRouter from "./routes/programs.js";
 import userRouter from "./routes/user.js";
 import aiRouter from "./routes/ai.js";
 import adminRouter from "./routes/admin.js";
+import { dataIngestionService } from "./services/dataIngestionService.js";
+import { TRANSFER_REQUIREMENTS } from "./data/mockData.js";
 
 dotenv.config();
 
@@ -41,10 +43,10 @@ async function startServer() {
   app.use("/api/schools", schoolsRouter);
   app.use("/api/courses", coursesRouter);
   app.use("/api/programs", programsRouter);
+  app.use("/api/ai", aiRouter); // public — no auth required for AI queries
 
   // ─── Protected routes (require Auth0 JWT) ───────────────────────────────────
   app.use("/api/user", checkJwt, userRouter);
-  app.use("/api/ai", checkJwt, aiRouter);
   app.use("/api/admin", checkJwt, adminRouter);
 
   // ─── Vite dev server / static production serving ────────────────────────────
@@ -64,6 +66,21 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+
+    // Auto-ingest transfer requirements into ChromaDB on every startup.
+    // Uses upsert so re-runs are safe. Fails gracefully if ChromaDB is not running.
+    dataIngestionService
+      .ingestRequirements(TRANSFER_REQUIREMENTS)
+      .then(() =>
+        console.log(
+          `[Ingest] Loaded ${TRANSFER_REQUIREMENTS.length} documents into ChromaDB`
+        )
+      )
+      .catch((err: Error) =>
+        console.warn(
+          `[Ingest] Failed — AI search will be limited until fixed.\n         Error: ${err.message}`
+        )
+      );
   });
 }
 

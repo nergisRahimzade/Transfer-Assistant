@@ -1,26 +1,14 @@
 import { useState } from 'react';
 import { X, ChevronRight, ChevronLeft } from 'lucide-react';
+import type { StudentProfile } from '../../types/index.js';
 
 interface GetStartedProps {
   onClose: () => void;
+  onSave: (profile: StudentProfile) => void;
 }
 
-export interface StudentProfile {
-  isResident: boolean;
-  communityCollege: string;
-  targetSchool: string;
-  major: string;
-  financialAid: boolean;
-  goals: string;
-  activities: string;
-  transferYears: number;
-  hasAPCredit: boolean;
-  hasIBCredit: boolean;
-  hasDualEnrollment: boolean;
-  apCredits?: string;
-  ibCredits?: string;
-  dualEnrollmentCredits?: string;
-}
+// Re-export so any existing imports keep working
+export type { StudentProfile };
 
 const COMMUNITY_COLLEGES = [
   'Santa Monica College',
@@ -53,7 +41,7 @@ const UC_CSU_SCHOOLS = [
   'Other',
 ];
 
-export function GetStarted({ onClose }: GetStartedProps) {
+export function GetStarted({ onClose, onSave }: GetStartedProps) {
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState<StudentProfile>({
     isResident: true,
@@ -78,10 +66,7 @@ export function GetStarted({ onClose }: GetStartedProps) {
   };
 
   const handleSubmit = () => {
-    // Pass profile data to parent component
-    onClose();
-    // Trigger navigation to results
-    window.location.hash = 'results';
+    onSave(profile);
   };
 
   return (

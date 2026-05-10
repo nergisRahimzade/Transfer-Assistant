@@ -20,16 +20,16 @@ router.post("/query", async (req: Request, res: Response) => {
     const matches = await dataIngestionService.searchRequirements(query);
 
     // 2. Build context array from matched documents
-    const contextDocs = matches.map((m) => m.text as string);
+    const contextDocs = matches.map((m: { text: string | null }) => m.text as string);
 
     // 3. Generate RAG response via Gemini
     const answer = await aiService.generateRAGResponse(query, contextDocs, userProfile);
 
     res.json({
       answer,
-      sources: matches.map((m) => m.metadata),
+      sources: matches.map((m: { text: string | null; metadata: unknown; distance: null }) => m.metadata),
       metadata: {
-        engine: "ChromaDB + Gemini",
+        engine: "In-Memory Vector Search + Gemini",
         matchesFound: matches.length,
       },
     });

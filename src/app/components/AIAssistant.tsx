@@ -1,5 +1,10 @@
-import { useState } from 'react';
-import { Send, Bot, User, Sparkles } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
+import type { StudentProfile } from '../../types/index.js';
+
+interface AIAssistantProps {
+  userProfile?: StudentProfile | null;
+}
 
 interface Message {
   id: string;
@@ -12,54 +17,73 @@ const SUGGESTED_QUESTIONS = [
   "When should I apply for transfer?",
   "What is IGETC?",
   "How do I check if my classes transfer?",
+  "What are CPT and OPT for international students?",
+  "How do I maintain my F-1 visa status?",
 ];
 
-const SAMPLE_RESPONSES: Record<string, string> = {
-  "What are the transfer requirements for UC Berkeley?": "To transfer to UC Berkeley, you'll need: (1) Complete 60 semester units by spring before transfer, (2) Minimum 3.0 GPA (though admitted students average 3.7+), (3) Complete all major prerequisites, (4) Finish IGETC or campus-specific general education, (5) Complete two English composition courses. UC Berkeley is highly competitive, so focus on achieving strong grades in your major prep courses!",
-  "When should I apply for transfer?": "The UC application period is November 1-30 for fall admission. CSU applications open October 1 and close November 30 for most campuses. You'll be applying during your second year of community college, about 9-10 months before you plan to transfer. Start preparing your application materials in summer!",
-  "What is IGETC?": "IGETC (Intersegmental General Education Transfer Curriculum) is a series of courses that you can complete to satisfy lower-division general education requirements at all UC and CSU campuses. Completing IGETC means you won't have to take additional GE courses after transferring, allowing you to focus on your major. It includes English, math, arts & humanities, social sciences, and physical & biological sciences.",
-  "How do I check if my classes transfer?": "Use ASSIST.org - it's the official transfer course articulation system for California's public colleges and universities. Simply select your community college, the UC or CSU campus you're interested in, and your intended major. ASSIST will show you exactly which courses transfer and how they satisfy requirements at your target school.",
-};
-
-export function AIAssistant() {
+export function AIAssistant({ userProfile }: AIAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: "Hi! I'm your AI Transfer Assistant. I'm here to help you navigate the transfer process from California Community College to UC or CSU. Ask me anything about requirements, deadlines, or the application process!",
+      content: "Hi! I'm your AI Transfer Assistant powered by Gemini. I can help with transfer requirements, deadlines, GE/IGETC, major prep, and F-1 visa topics for international students. What would you like to know?",
     },
   ]);
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
+  const handleSend = async (text?: string) => {
+    const query = (text ?? input).trim();
+    if (!query || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: query,
     };
-
     setMessages(prev => [...prev, userMessage]);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const response = SAMPLE_RESPONSES[input] ||
-        "That's a great question! While I'm a demo AI assistant, I can help you with general transfer guidance. For specific questions, I recommend visiting ASSIST.org, speaking with your college counselor, or checking the admission requirements on your target university's website. What else would you like to know about the transfer process?";
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-    }, 1000);
-
     setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/ai/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, userProfile: userProfile ?? undefined }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(err.error || 'Server error');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [
+        ...prev,
+        { id: (Date.now() + 1).toString(), role: 'assistant', content: data.answer },
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `Sorry, I couldn't reach the AI backend. Make sure the Express server is running (\`npm run server\`) and GEMINI_API_KEY is set in your .env file.\n\nError: ${message}`,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSuggestedQuestion = (question: string) => {
-    setInput(question);
+    handleSend(question);
   };
 
   return (
@@ -91,7 +115,7 @@ export function AIAssistant() {
                     <Bot className="w-4 h-4 text-white" />
                   )}
                 </div>
-                <div className={`max-w-[80%] p-4 rounded-2xl ${
+                <div className={`max-w-[80%] p-4 rounded-2xl whitespace-pre-wrap ${
                   message.role === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white border border-gray-200 text-gray-900'
@@ -100,10 +124,22 @@ export function AIAssistant() {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                <div className="bg-white border border-gray-200 p-4 rounded-2xl flex items-center gap-2 text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Thinking...</span>
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
           </div>
 
           {/* Suggested Questions */}
-          {messages.length === 1 && (
+          {messages.length === 1 && !isLoading && (
             <div className="px-6 py-4 border-t border-gray-200 bg-white">
               <p className="text-sm text-gray-600 mb-3">Try asking:</p>
               <div className="flex flex-wrap gap-2">
@@ -130,12 +166,14 @@ export function AIAssistant() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Ask about transfer requirements, deadlines, or anything else..."
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoading}
               />
               <button
-                onClick={handleSend}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                onClick={() => handleSend()}
+                disabled={isLoading || !input.trim()}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send className="w-5 h-5" />
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -144,3 +182,4 @@ export function AIAssistant() {
     </section>
   );
 }
+

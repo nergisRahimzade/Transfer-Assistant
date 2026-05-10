@@ -5,7 +5,7 @@ import { TRANSFER_REQUIREMENTS } from "../data/mockData.js";
 const router = Router();
 
 // POST /api/admin/ingest — protected (checkJwt applied in server.ts)
-// Ingests the built-in transfer requirements into ChromaDB
+// Re-ingests all transfer requirements into the in-memory vector index
 router.post("/ingest", async (_req: Request, res: Response) => {
   try {
     await dataIngestionService.ingestRequirements(TRANSFER_REQUIREMENTS);

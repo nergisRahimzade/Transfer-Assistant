@@ -1,51 +1,53 @@
-import { useState } from 'react';
-import { BookOpen, CheckCircle, GraduationCap, Map, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+﻿import { useState, useEffect } from 'react';
+import { BookOpen, CheckCircle, GraduationCap, Map, Sparkles, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { RoadmapPlanner } from './RoadmapPlanner';
+import type { StudentProfile } from '../../types/index.js';
 
-const REQUIRED_CLASSES = [
-  { code: 'ENGL 1A', name: 'English Composition', units: 3, category: 'GE' },
-  { code: 'ENGL 1B', name: 'Critical Thinking & Writing', units: 3, category: 'GE' },
-  { code: 'MATH 3A', name: 'Calculus I', units: 5, category: 'Major Prep' },
-  { code: 'MATH 3B', name: 'Calculus II', units: 5, category: 'Major Prep' },
-  { code: 'CS 1A', name: 'Introduction to Programming', units: 4, category: 'Major Prep' },
-  { code: 'CS 2A', name: 'Data Structures', units: 4, category: 'Major Prep' },
-];
+interface ResultsProps {
+  profile?: StudentProfile | null;
+}
 
-const ADDITIONAL_APPROVED = [
-  { code: 'MATH 3C', name: 'Calculus III', units: 5, category: 'Major Prep' },
-  { code: 'PHYS 4A', name: 'Physics for Scientists I', units: 5, category: 'Major Prep' },
-  { code: 'CS 2B', name: 'Algorithms', units: 4, category: 'Major Prep' },
-  { code: 'PHIL 10', name: 'Critical Thinking', units: 3, category: 'GE' },
-];
+interface Course {
+  id: string;
+  code: string;
+  name: string;
+  units: number;
+  category: string;
+  type: string;
+}
 
-const PROGRAMS = [
-  {
-    id: '1',
-    name: 'Transfer Alliance Program (TAP)',
-    school: 'UCLA',
-    description: 'Priority consideration for admission and scholarship opportunities',
-    benefits: ['Priority review', 'Scholarship access', 'Academic counseling'],
-  },
-  {
-    id: '2',
-    name: 'Transfer Admission Guarantee (TAG)',
-    school: 'UC Davis',
-    description: 'Guaranteed admission if you meet specific requirements',
-    benefits: ['Guaranteed admission', 'Early commitment', 'Clear requirements'],
-  },
-  {
-    id: '3',
-    name: 'Honors Program',
-    school: 'Multiple UCs',
-    description: 'Enhanced coursework and priority transfer consideration',
-    benefits: ['Enhanced curriculum', 'Transfer priority', 'Academic recognition'],
-  },
-];
+interface Program {
+  id: string;
+  name: string;
+  school: string;
+  description: string;
+  benefits: string[];
+}
 
-export function Results() {
+export function Results({ profile }: ResultsProps) {
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('edplan');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/courses').then(r => r.json()),
+      fetch('/api/programs').then(r => r.json()),
+    ])
+      .then(([coursesData, programsData]) => {
+        setCourses(coursesData);
+        setPrograms(programsData);
+      })
+      .catch(err => console.error('Failed to load data from API:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // ASSIST = major prep (required), CalGETC = GE (additional approved)
+  const required = courses.filter(c => c.type === 'ASSIST');
+  const additional = courses.filter(c => c.type === 'CalGETC');
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -65,6 +67,12 @@ export function Results() {
           </p>
         </div>
 
+        {loading ? (
+          <div className="flex justify-center items-center h-40 gap-3 text-gray-500">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Loading your plan...</span>
+          </div>
+        ) : (
         <div className="space-y-6">
           {/* Education Plan */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -92,15 +100,15 @@ export function Results() {
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <div className="text-sm text-blue-600 mb-1">Target School</div>
-                    <div className="text-lg text-gray-900">UC Berkeley</div>
+                    <div className="text-lg text-gray-900">{profile?.targetSchool || 'Not set'}</div>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg">
                     <div className="text-sm text-purple-600 mb-1">Major</div>
-                    <div className="text-lg text-gray-900">Computer Science</div>
+                    <div className="text-lg text-gray-900">{profile?.major || 'Not set'}</div>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg">
                     <div className="text-sm text-green-600 mb-1">Transfer Timeline</div>
-                    <div className="text-lg text-gray-900">2 Years</div>
+                    <div className="text-lg text-gray-900">{profile ? `${profile.transferYears} Year${profile.transferYears !== 1 ? 's' : ''}` : 'Not set'}</div>
                   </div>
                 </div>
               </div>
@@ -120,7 +128,7 @@ export function Results() {
                 <div className="text-left">
                   <h3 className="text-xl text-gray-900">Required & Approved Classes</h3>
                   <p className="text-sm text-gray-600">
-                    {REQUIRED_CLASSES.length} required, {ADDITIONAL_APPROVED.length} additional
+                    {required.length} major prep, {additional.length} GE courses
                   </p>
                 </div>
               </div>
@@ -134,11 +142,11 @@ export function Results() {
               <div className="px-6 pb-6 border-t border-gray-200">
                 <div className="mt-4 space-y-4">
                   <div>
-                    <h4 className="text-sm text-gray-600 mb-3">REQUIRED CLASSES</h4>
+                    <h4 className="text-sm text-gray-600 mb-3">MAJOR PREP (ASSIST)</h4>
                     <div className="space-y-2">
-                      {REQUIRED_CLASSES.map((course, idx) => (
+                      {required.map((course) => (
                         <div
-                          key={idx}
+                          key={course.id}
                           className="flex items-center justify-between p-3 bg-red-50 rounded-lg"
                         >
                           <div>
@@ -152,12 +160,13 @@ export function Results() {
                       ))}
                     </div>
                   </div>
+                  {additional.length > 0 && (
                   <div>
-                    <h4 className="text-sm text-gray-600 mb-3">ADDITIONALLY APPROVED CLASSES</h4>
+                    <h4 className="text-sm text-gray-600 mb-3">GENERAL EDUCATION (CalGETC)</h4>
                     <div className="space-y-2">
-                      {ADDITIONAL_APPROVED.map((course, idx) => (
+                      {additional.map((course) => (
                         <div
-                          key={idx}
+                          key={course.id}
                           className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
                         >
                           <div>
@@ -171,6 +180,7 @@ export function Results() {
                       ))}
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             )}
@@ -189,7 +199,7 @@ export function Results() {
                 <div className="text-left">
                   <h3 className="text-xl text-gray-900">Exploring Programs</h3>
                   <p className="text-sm text-gray-600">
-                    {PROGRAMS.length} programs available for you
+                    {programs.length} programs available for you
                   </p>
                 </div>
               </div>
@@ -202,7 +212,7 @@ export function Results() {
             {expandedSection === 'programs' && (
               <div className="px-6 pb-6 border-t border-gray-200">
                 <div className="mt-4 space-y-3">
-                  {PROGRAMS.map((program) => (
+                  {programs.map((program) => (
                     <div
                       key={program.id}
                       onClick={() =>
@@ -283,6 +293,7 @@ export function Results() {
             )}
           </div>
         </div>
+        )}
       </div>
     </section>
   );
