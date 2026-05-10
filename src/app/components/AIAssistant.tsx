@@ -26,7 +26,7 @@ export function AIAssistant({ userProfile }: AIAssistantProps) {
     {
       id: '1',
       role: 'assistant',
-      content: "Hi! I'm your AI Transfer Assistant powered by Gemini. I can help with transfer requirements, deadlines, GE/IGETC, major prep, and F-1 visa topics for international students. What would you like to know?",
+      content: "Hi! I'm your AI Transfer Buddy powered by Gemini. I can help with transfer requirements, deadlines, GE/IGETC, major prep, and F-1 visa topics for international students. What would you like to know?",
     },
   ]);
   const [input, setInput] = useState('');

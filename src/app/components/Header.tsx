@@ -14,7 +14,7 @@ export function Header({ onGetStartedClick }: HeaderProps) {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-semibold text-gray-900">TransferAI</span>
+            <span className="text-xl font-semibold text-gray-900">Transfer Buddy AI</span>
           </div>
 
           {/* Desktop Navigation */}

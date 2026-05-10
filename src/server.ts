@@ -31,7 +31,7 @@ const checkJwt = auth({
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -64,23 +64,21 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, "0.0.0.0", async () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
 
     // Auto-ingest transfer requirements into ChromaDB on every startup.
     // Uses upsert so re-runs are safe. Fails gracefully if ChromaDB is not running.
-    dataIngestionService
-      .ingestRequirements(TRANSFER_REQUIREMENTS)
-      .then(() =>
-        console.log(
-          `[Ingest] Loaded ${TRANSFER_REQUIREMENTS.length} documents into ChromaDB`
-        )
-      )
-      .catch((err: Error) =>
-        console.warn(
-          `[Ingest] Failed — AI search will be limited until fixed.\n         Error: ${err.message}`
-        )
+    try {
+      await dataIngestionService.ingestRequirements(TRANSFER_REQUIREMENTS);
+      console.log(
+        `[Ingest] Loaded ${TRANSFER_REQUIREMENTS.length} documents into ChromaDB`
       );
+    } catch (err: any) {
+      console.warn(
+        `[Ingest] Failed — AI search will be limited until fixed.\nError: ${err.message}`
+      );
+    }
   });
 }
 
